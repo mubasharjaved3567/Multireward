@@ -320,4 +320,4 @@ This guide was validated on:
 - **GPU:** NVIDIA T4 (16 GB) via Modal.com
 - **Date:** 2026-04
 
-If you reproduce this in a different environment and get different results, please open an issue or share your setup.
+If you reproduce this in a different environment and get different results, please open an issue or share your setup
