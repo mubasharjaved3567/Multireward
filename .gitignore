@@ -5,4 +5,4 @@ __pycache__/
 *.pth
 *.ckpt
 *.log
-.env
+.envMultiReward/venv_arm64/
