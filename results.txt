@@ -1,0 +1,543 @@
+(venv) (base) PS C:\Users\user\Documents\DVLM Project> modal run reproduce_benchmark.py
+✓ Initialized. View run at https://modal.com/apps/altaf-baigal997/main/ap-idTxKZmz0bJp8GG3qC4NLq
+✓ Created objects.
+├── 🔨 Created mount C:\Users\user\Documents\DVLM Project\reproduce_benchmark.py
+└── 🔨 Created function deep_inspect.
+======================================================================
+PART 1: Deep look at 5 sample prompt folders
+======================================================================
+
+part-001130/
+  images/ contains 1 items:
+    [DIR] 0099/  (8 items, first 5: ['2154076f-6e8f-4ead-9e62-dbc009cbf022.webp', '2c7bb8b5-a180-466f-bfaa-d7ce93cc9f8e.webp', '333c8726-08aa-42c0-8a2d-02ccbaea3053.webp', '5fc22864-8338-4f7c-b2e7-c8f3f05a4c85.webp', 'a43d0f46-5f0a-4932-80c1-176903979837.webp'])
+
+part-001134/
+  images/ contains 1 items:
+    [DIR] 0021/  (7 items, first 5: ['04af6220-1af3-49bb-a415-5a80530dfaac.webp', '0b53af2b-83b9-4448-9efd-98d033f2b110.webp', '3edfba62-899f-4be0-a492-40861f387eea.webp', '6fb1d19c-6e47-45f5-aced-34859ef3b809.webp', '85870b12-2bc4-47d1-b241-1ae1feae264a.webp'])
+
+part-001135/
+  images/ contains 1 items:
+    [DIR] 0100/  (8 items, first 5: ['2c8418a0-ae70-4bed-99d4-6b0b368c5d27.webp', '2dd81dc0-6e89-48fb-b982-a2b7cdaa57ff.webp', '6406bbc0-a2b9-49fd-bb7a-93bdf80fa73b.webp', '992c835c-102e-4100-80eb-3cd8a738cd9c.webp', '9d77d766-6df5-4169-862b-f1f8bcc51a2a.webp'])
+
+part-001140/
+  images/ contains 1 items:
+    [DIR] 0089/  (7 items, first 5: ['244dcdec-d3fe-4bf9-9a92-192e02c400ac.webp', '2ce7e5e5-f9f4-4e1b-ba1d-19d60a6fdc2b.webp', '312a6901-a0cc-42d3-a5a7-6638393efe6b.webp', '40fa05d1-17fe-46d7-87c1-e161ddb5ea28.webp', '84b08805-2841-490a-9b60-fb1b0b11776f.webp'])
+
+part-001142/
+  images/ contains 2 items:
+    [DIR] 0032/  (9 items, first 5: ['168a5e65-c7c6-43e5-a872-ba7394594f32.webp', '2046e7fa-7766-446c-93a4-3ff6dd619a98.webp', '3544e74d-abe2-4500-8d42-a75e3e528e29.webp', '54ea02ef-d882-45ba-b708-5818f165a42d.webp', '819f8700-ce36-4fb7-afa9-17c348db1ab2.webp'])
+    [DIR] 0089/  (7 items, first 5: ['006f7978-20d3-42f7-9c46-fb2692b5f551.webp', '1199c0b7-730d-4259-b86b-8ba1cbebaa32.webp', '7921b85b-5277-4b93-8a05-e73fa700f50b.webp', '7f0614c0-f3a4-422f-882a-123c7eb39a87.webp', '98d73e93-5601-470f-867c-40b2948295a3.webp'])
+
+======================================================================
+PART 2: data/test.json structure
+======================================================================
+  Type: list
+  Length: 466
+  First entry keys: ['id', 'prompt', 'generations', 'ranking']
+
+  First entry (truncated):
+  {
+  "id": "005658-0040",
+  "prompt": "deathly portal to the abyss, ultra detailed, warm interior light, cinematic shot, photorealistic, octane render, high definition, fine details, sinister tones, 8 k, mcbess mood,",
+  "generations": [
+    "part-005658/images/0040/45b0de4d-5a57-4ae3-8810-ffbd328204fd.webp",
+    "part-005658/images/0040/7d4cc31d-2451-4a9d-99e6-3bdc157aaf2d.webp",
+    "part-005658/images/0040/f24a2c01-b1ed-4d4f-ba23-5ba5755b1ce7.webp",
+    "part-005658/images/0040/e77d096b-cc89-49cc-ae9a-39679ae23aeb.webp"
+  ],
+  "ranking": [
+    1,
+    2,
+    5,
+    3
+  ]
+}
+
+======================================================================
+PART 3: First 100 lines of test.py (authors' Table 1 reproduction)
+======================================================================
+'''
+@File       :   inference.py
+@Time       :   2023/03/12 15:35:00
+@Auther     :   Jiazheng Xu
+@Contact    :   xjz22@mails.tsinghua.edu.cn
+@Description:   Inference reward model.
+'''
+
+import os
+import torch
+import json
+from tqdm import tqdm
+import ImageReward as RM
+import argparse
+
+
+def acc(score_sample, target_sample):
+
+    tol_cnt = 0.
+    true_cnt = 0.
+    for idx in range(len(score_sample)):
+        item_base = score_sample[idx]["ranking"]
+        item = target_sample[idx]["rewards"]
+        for i in range(len(item_base)):
+            for j in range(i+1, len(item_base)):
+                if item_base[i] > item_base[j]:
+                    if item[i] >= item[j]:
+                        tol_cnt += 1
+                    elif item[i] < item[j]:
+                        tol_cnt += 1
+                        true_cnt += 1
+                elif item_base[i] < item_base[j]:
+                    if item[i] > item[j]:
+                        tol_cnt += 1
+                        true_cnt += 1
+                    elif item[i] <= item[j]:
+                        tol_cnt += 1
+
+    return true_cnt / tol_cnt
+
+
+def test(args):
+
+    device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+
+    score_sample = []
+    with open(args.source_path, "r") as f:
+        score_sample = json.load(f)
+
+    model_type_list = []
+    if args.model_type == 'all':
+        model_type_list = ['ImageReward-v1.0', 'CLIP', 'BLIP', 'Aesthetic']
+    else:
+        model_type_list = [args.model_type]
+
+    for model_type in model_type_list:
+        print(f"{model_type} Test begin: ")
+
+        if model_type == 'ImageReward-v1.0':
+            model = RM.load(name=model_type, device=device, download_root=args.rm_path)
+        else:
+            model = RM.load_score(name=model_type, device=device, download_root=args.rm_path)
+
+        target_sample = []
+        # bar = tqdm(range(len(score_sample)), desc=f'{model_type} ranking')
+        with torch.no_grad():
+            for item in score_sample:
+                img_list = [os.path.join(args.img_prefix, img) for img in item["generations"]]
+                ranking, rewards = model.inference_rank(item["prompt"], img_list)
+
+                target_item = {
+                    "id": item["id"],
+                    "prompt": item["prompt"],
+                    "ranking": ranking,
+                    "rewards": rewards
+                }
+                target_sample.append(target_item)
+                # bar.update(1)
+
+        target_path = os.path.join(args.target_dir, f"test_{model_type}.json")
+        with open(target_path, "w") as f:
+            json.dump(target_sample, f, indent=4, ensure_ascii=False)
+
+        test_acc = acc(score_sample, target_sample)
+        print(f"{model_type:>16s} Test Acc: {100 * test_acc:.2f}%")
+
+
+if __name__ == "__main__":
+
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--source_path', default="data/test.json", type=str)
+    parser.add_argument('--target_dir', default="data/", type=str)
+    parser.add_argument('--img_prefix', default="data/test_images", type=str)
+
+    parser.add_argument('--model_type', default="all", type=str, help="ImageReward-v1.0, CLIP, BLIP, Aesthetic or all")
+    parser.add_argument('--rm_path', default="checkpoint/", type=str)
+
+    args = parser.parse_args()
+
+Stopping app - local entrypoint completed.
+✓ App completed. View run at https://modal.com/apps/altaf-baigal997/main/ap-idTxKZmz0bJp8GG3qC4NLq
+(venv) (base) PS C:\Users\user\Documents\DVLM Project> modal run reproduce_benchmark.py
+✓ Initialized. View run at https://modal.com/apps/altaf-baigal997/main/ap-ooA5nrRlufbDAKvbo9d0UZ
+Building image im-hhTdi5cw98VDpDHwkPoRgu
+
+=> Step 0: FROM base
+
+=> Step 1: RUN python -m pip install Pillow accelerate==0.27.2 diffusers==0.24.0 fairscale==0.4.13 ftfy 'numpy<2.0' pandas peft==0.7.1 regex safetensors timm==0.9.12 tokenizers==0.15.2 tqdm transformers==4.38.2
+Looking in indexes: http://pypi-mirror.modal.local:5555/simple
+Requirement already satisfied: Pillow in /opt/conda/lib/python3.10/site-packages (9.4.0)
+Collecting accelerate==0.27.2
+  Downloading http://pypi-mirror.modal.local:5555/simple/accelerate/accelerate-0.27.2-py3-none-any.whl (279 kB)
+     ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 280.0/280.0 kB 23.6 MB/s eta 0:00:00
+Collecting diffusers==0.24.0
+  Downloading http://pypi-mirror.modal.local:5555/simple/diffusers/diffusers-0.24.0-py3-none-any.whl (1.8 MB)
+     ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 1.8/1.8 MB 135.1 MB/s eta 0:00:00
+Collecting fairscale==0.4.13
+  Downloading http://pypi-mirror.modal.local:5555/simple/fairscale/fairscale-0.4.13.tar.gz (266 kB)
+     ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 266.3/266.3 kB 235.2 MB/s eta 0:00:00
+  Installing build dependencies: started
+  Installing build dependencies: finished with status 'done'
+  Getting requirements to build wheel: started
+  Getting requirements to build wheel: finished with status 'done'
+  Installing backend dependencies: started
+  Installing backend dependencies: finished with status 'done'
+  Preparing metadata (pyproject.toml): started
+  Preparing metadata (pyproject.toml): finished with status 'done'
+Collecting ftfy
+  Downloading http://pypi-mirror.modal.local:5555/simple/ftfy/ftfy-6.3.1-py3-none-any.whl (44 kB)
+     ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 44.8/44.8 kB 110.2 MB/s eta 0:00:00
+Requirement already satisfied: numpy<2.0 in /opt/conda/lib/python3.10/site-packages (1.24.3)
+Collecting pandas
+  Downloading http://pypi-mirror.modal.local:5555/simple/pandas/pandas-2.3.3-cp310-cp310-manylinux_2_24_x86_64.manylinux_2_28_x86_64.whl (12.8 MB)
+     ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 12.8/12.8 MB 247.7 MB/s eta 0:00:00
+Collecting peft==0.7.1
+  Downloading http://pypi-mirror.modal.local:5555/simple/peft/peft-0.7.1-py3-none-any.whl (168 kB)
+     ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 168.3/168.3 kB 249.0 MB/s eta 0:00:00
+Collecting regex
+  Downloading http://pypi-mirror.modal.local:5555/simple/regex/regex-2026.4.4-cp310-cp310-manylinux2014_x86_64.manylinux_2_17_x86_64.manylinux_2_28_x86_64.whl (793 kB)
+     ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 793.6/793.6 kB 251.7 MB/s eta 0:00:00
+Collecting safetensors
+  Downloading http://pypi-mirror.modal.local:5555/simple/safetensors/safetensors-0.7.0-cp38-abi3-manylinux_2_17_x86_64.manylinux2014_x86_64.whl (507 kB)
+     ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 507.2/507.2 kB 291.0 MB/s eta 0:00:00
+Collecting timm==0.9.12
+  Downloading http://pypi-mirror.modal.local:5555/simple/timm/timm-0.9.12-py3-none-any.whl (2.2 MB)
+     ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 2.2/2.2 MB 235.2 MB/s eta 0:00:00
+Collecting tokenizers==0.15.2
+  Downloading http://pypi-mirror.modal.local:5555/simple/tokenizers/tokenizers-0.15.2-cp310-cp310-manylinux_2_17_x86_64.manylinux2014_x86_64.whl (3.6 MB)
+     ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 3.6/3.6 MB 197.6 MB/s eta 0:00:00
+Requirement already satisfied: tqdm in /opt/conda/lib/python3.10/site-packages (4.65.0)
+Collecting transformers==4.38.2
+  Downloading http://pypi-mirror.modal.local:5555/simple/transformers/transformers-4.38.2-py3-none-any.whl (8.5 MB)
+     ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 8.5/8.5 MB 242.8 MB/s eta 0:00:00
+Requirement already satisfied: pyyaml in /opt/conda/lib/python3.10/site-packages (from accelerate==0.27.2) (6.0)
+Requirement already satisfied: psutil in /opt/conda/lib/python3.10/site-packages (from accelerate==0.27.2) (5.9.0)
+Requirement already satisfied: packaging>=20.0 in /opt/conda/lib/python3.10/site-packages (from accelerate==0.27.2) (23.0)
+Collecting huggingface-hub
+  Downloading http://pypi-mirror.modal.local:5555/simple/huggingface-hub/huggingface_hub-1.11.0-py3-none-any.whl (645 kB)
+     ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 645.5/645.5 kB 288.4 MB/s eta 0:00:00
+Requirement already satisfied: torch>=1.10.0 in /opt/conda/lib/python3.10/site-packages (from accelerate==0.27.2) (2.0.1)
+Requirement already satisfied: filelock in /opt/conda/lib/python3.10/site-packages (from diffusers==0.24.0) (3.9.0)
+Collecting importlib-metadata
+  Downloading http://pypi-mirror.modal.local:5555/simple/importlib-metadata/importlib_metadata-9.0.0-py3-none-any.whl (27 kB)
+Requirement already satisfied: requests in /opt/conda/lib/python3.10/site-packages (from diffusers==0.24.0) (2.29.0)
+Requirement already satisfied: torchvision in /opt/conda/lib/python3.10/site-packages (from timm==0.9.12) (0.15.2)
+Collecting huggingface-hub
+  Downloading http://pypi-mirror.modal.local:5555/simple/huggingface-hub/huggingface_hub-0.36.2-py3-none-any.whl (566 kB)
+     ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 566.4/566.4 kB 279.7 MB/s eta 0:00:00
+Requirement already satisfied: wcwidth in /opt/conda/lib/python3.10/site-packages (from ftfy) (0.2.5)
+Requirement already satisfied: pytz>=2020.1 in /opt/conda/lib/python3.10/site-packages (from pandas) (2022.7)
+Collecting tzdata>=2022.7
+  Downloading http://pypi-mirror.modal.local:5555/simple/tzdata/tzdata-2026.1-py2.py3-none-any.whl (348 kB)
+     ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 349.0/349.0 kB 286.0 MB/s eta 0:00:00
+Collecting python-dateutil>=2.8.2
+  Downloading http://pypi-mirror.modal.local:5555/simple/python-dateutil/python_dateutil-2.9.0.post0-py2.py3-none-any.whl (229 kB)
+     ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 229.9/229.9 kB 273.5 MB/s eta 0:00:00
+Collecting fsspec>=2023.5.0
+  Downloading http://pypi-mirror.modal.local:5555/simple/fsspec/fsspec-2026.3.0-py3-none-any.whl (202 kB)
+     ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 202.6/202.6 kB 246.2 MB/s eta 0:00:00
+Requirement already satisfied: typing-extensions>=3.7.4.3 in /opt/conda/lib/python3.10/site-packages (from huggingface-hub->accelerate==0.27.2) (4.5.0)
+Collecting hf-xet<2.0.0,>=1.1.3
+  Downloading http://pypi-mirror.modal.local:5555/simple/hf-xet/hf_xet-1.4.3-cp37-abi3-manylinux2014_x86_64.manylinux_2_17_x86_64.whl (4.2 MB)
+     ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 4.2/4.2 MB 247.1 MB/s eta 0:00:00
+Requirement already satisfied: six>=1.5 in /opt/conda/lib/python3.10/site-packages (from python-dateutil>=2.8.2->pandas) (1.16.0)
+Requirement already satisfied: sympy in /opt/conda/lib/python3.10/site-packages (from torch>=1.10.0->accelerate==0.27.2) (1.12)
+Requirement already satisfied: networkx in /opt/conda/lib/python3.10/site-packages (from torch>=1.10.0->accelerate==0.27.2) (3.1)
+Requirement already satisfied: jinja2 in /opt/conda/lib/python3.10/site-packages (from torch>=1.10.0->accelerate==0.27.2) (3.1.2)
+Collecting zipp>=3.20
+  Downloading http://pypi-mirror.modal.local:5555/simple/zipp/zipp-3.23.1-py3-none-any.whl (10 kB)
+Requirement already satisfied: urllib3<1.27,>=1.21.1 in /opt/conda/lib/python3.10/site-packages (from requests->diffusers==0.24.0) (1.26.15)
+Requirement already satisfied: charset-normalizer<4,>=2 in /opt/conda/lib/python3.10/site-packages (from requests->diffusers==0.24.0) (2.0.4)
+Requirement already satisfied: idna<4,>=2.5 in /opt/conda/lib/python3.10/site-packages (from requests->diffusers==0.24.0) (3.4)
+Requirement already satisfied: certifi>=2017.4.17 in /opt/conda/lib/python3.10/site-packages (from requests->diffusers==0.24.0) (2023.5.7)
+Requirement already satisfied: MarkupSafe>=2.0 in /opt/conda/lib/python3.10/site-packages (from jinja2->torch>=1.10.0->accelerate==0.27.2) (2.1.1)
+Requirement already satisfied: mpmath>=0.19 in /opt/conda/lib/python3.10/site-packages (from sympy->torch>=1.10.0->accelerate==0.27.2) (1.3.0)
+Building wheels for collected packages: fairscale
+  Building wheel for fairscale (pyproject.toml): started
+  Building wheel for fairscale (pyproject.toml): finished with status 'done'
+  Created wheel for fairscale: filename=fairscale-0.4.13-py3-none-any.whl size=332207 sha256=3618a351f905179a7367318bbd420b35d01abca98797f413aa5b331730c19767
+  Stored in directory: /tmp/pip-ephem-wheel-cache-t4ly2z0j/wheels/29/43/a7/0ad7a5e1c7fd91f0c2c9ed360a0de28b80450395fa33f75002
+Successfully built fairscale
+Installing collected packages: zipp, tzdata, safetensors, regex, python-dateutil, hf-xet, ftfy, fsspec, pandas, importlib-metadata, huggingface-hub, tokenizers, fairscale, diffusers, accelerate, transformers, timm, peft
+Successfully installed accelerate-0.27.2 diffusers-0.24.0 fairscale-0.4.13 fsspec-2026.3.0 ftfy-6.3.1 hf-xet-1.4.3 huggingface-hub-0.36.2 importlib-metadata-9.0.0 pandas-2.3.3 peft-0.7.1 python-dateutil-2.9.0.post0 regex-2026.4.4 safetensors-0.7.0 timm-0.9.12 tokenizers-0.15.2 transformers-4.38.2 tzdata-2026.1 zipp-3.23.1
+Saving image...
+Image saved, took 2.90s
+
+Built image im-hhTdi5cw98VDpDHwkPoRgu in 25.01s
+
+
+Building image im-vVu0LV8pUKbXVAA896cT2x
+
+=> Step 0: FROM base
+
+=> Step 1: RUN python -m pip install git+https://github.com/openai/CLIP.git
+Looking in indexes: http://pypi-mirror.modal.local:5555/simple
+Collecting git+https://github.com/openai/CLIP.git
+  Cloning https://github.com/openai/CLIP.git to /tmp/pip-req-build-4dnvulew
+  Running command git clone --filter=blob:none --quiet https://github.com/openai/CLIP.git /tmp/pip-req-build-4dnvulew
+  Resolved https://github.com/openai/CLIP.git to commit d05afc436d78f1c48dc0dbf8e5980a9d471f35f6
+  Preparing metadata (setup.py): started
+  Preparing metadata (setup.py): finished with status 'done'
+Requirement already satisfied: ftfy in /opt/conda/lib/python3.10/site-packages (from clip==1.0) (6.3.1)
+Requirement already satisfied: packaging in /opt/conda/lib/python3.10/site-packages (from clip==1.0) (23.0)
+Requirement already satisfied: regex in /opt/conda/lib/python3.10/site-packages (from clip==1.0) (2026.4.4)
+Requirement already satisfied: tqdm in /opt/conda/lib/python3.10/site-packages (from clip==1.0) (4.65.0)
+Requirement already satisfied: torch in /opt/conda/lib/python3.10/site-packages (from clip==1.0) (2.0.1)
+Requirement already satisfied: torchvision in /opt/conda/lib/python3.10/site-packages (from clip==1.0) (0.15.2)
+Requirement already satisfied: wcwidth in /opt/conda/lib/python3.10/site-packages (from ftfy->clip==1.0) (0.2.5)
+Requirement already satisfied: filelock in /opt/conda/lib/python3.10/site-packages (from torch->clip==1.0) (3.9.0)
+Requirement already satisfied: typing-extensions in /opt/conda/lib/python3.10/site-packages (from torch->clip==1.0) (4.5.0)
+Requirement already satisfied: sympy in /opt/conda/lib/python3.10/site-packages (from torch->clip==1.0) (1.12)
+Requirement already satisfied: networkx in /opt/conda/lib/python3.10/site-packages (from torch->clip==1.0) (3.1)
+Requirement already satisfied: jinja2 in /opt/conda/lib/python3.10/site-packages (from torch->clip==1.0) (3.1.2)
+Requirement already satisfied: numpy in /opt/conda/lib/python3.10/site-packages (from torchvision->clip==1.0) (1.24.3)
+Requirement already satisfied: requests in /opt/conda/lib/python3.10/site-packages (from torchvision->clip==1.0) (2.29.0)
+Requirement already satisfied: pillow!=8.3.*,>=5.3.0 in /opt/conda/lib/python3.10/site-packages (from torchvision->clip==1.0) (9.4.0)
+Requirement already satisfied: MarkupSafe>=2.0 in /opt/conda/lib/python3.10/site-packages (from jinja2->torch->clip==1.0) (2.1.1)
+Requirement already satisfied: urllib3<1.27,>=1.21.1 in /opt/conda/lib/python3.10/site-packages (from requests->torchvision->clip==1.0) (1.26.15)
+Requirement already satisfied: charset-normalizer<4,>=2 in /opt/conda/lib/python3.10/site-packages (from requests->torchvision->clip==1.0) (2.0.4)
+Requirement already satisfied: idna<4,>=2.5 in /opt/conda/lib/python3.10/site-packages (from requests->torchvision->clip==1.0) (3.4)
+Requirement already satisfied: certifi>=2017.4.17 in /opt/conda/lib/python3.10/site-packages (from requests->torchvision->clip==1.0) (2023.5.7)
+Requirement already satisfied: mpmath>=0.19 in /opt/conda/lib/python3.10/site-packages (from sympy->torch->clip==1.0) (1.3.0)
+Building wheels for collected packages: clip
+  Building wheel for clip (setup.py): started
+  Building wheel for clip (setup.py): finished with status 'done'
+  Created wheel for clip: filename=clip-1.0-py3-none-any.whl size=1369490 sha256=14c4c386e6bd4e243d16ef417de0f87e8e463c694ba3d0b05904a3b2f546ba70
+  Stored in directory: /tmp/pip-ephem-wheel-cache-gxanef_v/wheels/da/2b/4c/d6691fa9597aac8bb85d2ac13b112deb897d5b50f5ad9a37e4
+Successfully built clip
+Installing collected packages: clip
+Successfully installed clip-1.0
+Saving image...
+Image saved, took 3.13s
+
+Built image im-vVu0LV8pUKbXVAA896cT2x in 10.88s
+
+
+Building image im-XeXKzmCSiWqJTDe44qVgH5
+
+=> Step 0: FROM base
+
+=> Step 1: RUN python -m pip install image-reward
+Looking in indexes: http://pypi-mirror.modal.local:5555/simple
+Collecting image-reward
+  Downloading http://pypi-mirror.modal.local:5555/simple/image-reward/image_reward-1.5-py3-none-any.whl (42 kB)
+     ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 42.3/42.3 kB 4.4 MB/s eta 0:00:00
+Requirement already satisfied: transformers>=4.27.4 in /opt/conda/lib/python3.10/site-packages (from image-reward) (4.38.2)
+Requirement already satisfied: diffusers>=0.16.0 in /opt/conda/lib/python3.10/site-packages (from image-reward) (0.24.0)
+Requirement already satisfied: accelerate>=0.16.0 in /opt/conda/lib/python3.10/site-packages (from image-reward) (0.27.2)
+Collecting datasets>=2.11.0
+  Downloading http://pypi-mirror.modal.local:5555/simple/datasets/datasets-4.8.4-py3-none-any.whl (526 kB)
+     ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 527.0/527.0 kB 14.8 MB/s eta 0:00:00
+Requirement already satisfied: huggingface-hub>=0.13.4 in /opt/conda/lib/python3.10/site-packages (from image-reward) (0.36.2)
+Requirement already satisfied: fairscale==0.4.13 in /opt/conda/lib/python3.10/site-packages (from image-reward) (0.4.13)
+Collecting timm==0.6.13
+  Downloading http://pypi-mirror.modal.local:5555/simple/timm/timm-0.6.13-py3-none-any.whl (549 kB)
+     ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 549.1/549.1 kB 169.2 MB/s eta 0:00:00
+Requirement already satisfied: torch>=1.8.0 in /opt/conda/lib/python3.10/site-packages (from fairscale==0.4.13->image-reward) (2.0.1)
+Requirement already satisfied: numpy>=1.22.0 in /opt/conda/lib/python3.10/site-packages (from fairscale==0.4.13->image-reward) (1.24.3)
+Requirement already satisfied: torchvision in /opt/conda/lib/python3.10/site-packages (from timm==0.6.13->image-reward) (0.15.2)
+Requirement already satisfied: pyyaml in /opt/conda/lib/python3.10/site-packages (from timm==0.6.13->image-reward) (6.0)
+Requirement already satisfied: psutil in /opt/conda/lib/python3.10/site-packages (from accelerate>=0.16.0->image-reward) (5.9.0)
+Requirement already satisfied: safetensors>=0.3.1 in /opt/conda/lib/python3.10/site-packages (from accelerate>=0.16.0->image-reward) (0.7.0)
+Requirement already satisfied: packaging>=20.0 in /opt/conda/lib/python3.10/site-packages (from accelerate>=0.16.0->image-reward) (23.0)
+Collecting xxhash
+  Downloading http://pypi-mirror.modal.local:5555/simple/xxhash/xxhash-3.6.0-cp310-cp310-manylinux2014_x86_64.manylinux_2_17_x86_64.manylinux_2_28_x86_64.whl (193 kB)
+     ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 193.2/193.2 kB 108.5 MB/s eta 0:00:00
+Requirement already satisfied: pandas in /opt/conda/lib/python3.10/site-packages (from datasets>=2.11.0->image-reward) (2.3.3)
+Requirement already satisfied: filelock in /opt/conda/lib/python3.10/site-packages (from datasets>=2.11.0->image-reward) (3.9.0)
+Collecting tqdm>=4.66.3
+  Downloading http://pypi-mirror.modal.local:5555/simple/tqdm/tqdm-4.67.3-py3-none-any.whl (78 kB)
+     ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 78.4/78.4 kB 202.9 MB/s eta 0:00:00
+Collecting httpx<1.0.0
+  Downloading http://pypi-mirror.modal.local:5555/simple/httpx/httpx-0.28.1-py3-none-any.whl (73 kB)
+     ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 73.5/73.5 kB 257.0 MB/s eta 0:00:00
+Collecting multiprocess<0.70.20
+  Downloading http://pypi-mirror.modal.local:5555/simple/multiprocess/multiprocess-0.70.19-py310-none-any.whl (134 kB)
+     ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 134.9/134.9 kB 198.9 MB/s eta 0:00:00
+Collecting pyarrow>=21.0.0
+  Downloading http://pypi-mirror.modal.local:5555/simple/pyarrow/pyarrow-23.0.1-cp310-cp310-manylinux_2_28_x86_64.whl (47.6 MB)
+     ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 47.6/47.6 MB 64.6 MB/s eta 0:00:00
+Collecting requests>=2.32.2
+  Downloading http://pypi-mirror.modal.local:5555/simple/requests/requests-2.33.1-py3-none-any.whl (64 kB)
+     ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 64.9/64.9 kB 150.2 MB/s eta 0:00:00
+Collecting dill<0.4.2,>=0.3.0
+  Downloading http://pypi-mirror.modal.local:5555/simple/dill/dill-0.4.1-py3-none-any.whl (120 kB)
+     ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 120.0/120.0 kB 259.3 MB/s eta 0:00:00
+Collecting fsspec[http]<=2026.2.0,>=2023.1.0
+  Downloading http://pypi-mirror.modal.local:5555/simple/fsspec/fsspec-2026.2.0-py3-none-any.whl (202 kB)
+     ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 202.5/202.5 kB 196.3 MB/s eta 0:00:00
+Requirement already satisfied: importlib-metadata in /opt/conda/lib/python3.10/site-packages (from diffusers>=0.16.0->image-reward) (9.0.0)
+Requirement already satisfied: regex!=2019.12.17 in /opt/conda/lib/python3.10/site-packages (from diffusers>=0.16.0->image-reward) (2026.4.4)
+Requirement already satisfied: Pillow in /opt/conda/lib/python3.10/site-packages (from diffusers>=0.16.0->image-reward) (9.4.0)
+Requirement already satisfied: fsspec>=2023.5.0 in /opt/conda/lib/python3.10/site-packages (from huggingface-hub>=0.13.4->image-reward) (2026.3.0)
+Requirement already satisfied: typing-extensions>=3.7.4.3 in /opt/conda/lib/python3.10/site-packages (from huggingface-hub>=0.13.4->image-reward) (4.5.0)
+Requirement already satisfied: hf-xet<2.0.0,>=1.1.3 in /opt/conda/lib/python3.10/site-packages (from huggingface-hub>=0.13.4->image-reward) (1.4.3)
+Requirement already satisfied: tokenizers<0.19,>=0.14 in /opt/conda/lib/python3.10/site-packages (from transformers>=4.27.4->image-reward) (0.15.2)
+Collecting aiohttp!=4.0.0a0,!=4.0.0a1
+  Downloading http://pypi-mirror.modal.local:5555/simple/aiohttp/aiohttp-3.13.5-cp310-cp310-manylinux2014_x86_64.manylinux_2_17_x86_64.manylinux_2_28_x86_64.whl (1.7 MB)
+     ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 1.7/1.7 MB 342.0 MB/s eta 0:00:00
+Requirement already satisfied: idna in /opt/conda/lib/python3.10/site-packages (from httpx<1.0.0->datasets>=2.11.0->image-reward) (3.4)
+Collecting anyio
+  Downloading http://pypi-mirror.modal.local:5555/simple/anyio/anyio-4.13.0-py3-none-any.whl (114 kB)
+     ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 114.4/114.4 kB 285.2 MB/s eta 0:00:00
+Collecting httpcore==1.*
+  Downloading http://pypi-mirror.modal.local:5555/simple/httpcore/httpcore-1.0.9-py3-none-any.whl (78 kB)
+     ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 78.8/78.8 kB 264.4 MB/s eta 0:00:00
+Requirement already satisfied: certifi in /opt/conda/lib/python3.10/site-packages (from httpx<1.0.0->datasets>=2.11.0->image-reward) (2023.5.7)
+Collecting h11>=0.16
+  Downloading http://pypi-mirror.modal.local:5555/simple/h11/h11-0.16.0-py3-none-any.whl (37 kB)
+Requirement already satisfied: urllib3<3,>=1.26 in /opt/conda/lib/python3.10/site-packages (from requests>=2.32.2->datasets>=2.11.0->image-reward) (1.26.15)
+Requirement already satisfied: charset_normalizer<4,>=2 in /opt/conda/lib/python3.10/site-packages (from requests>=2.32.2->datasets>=2.11.0->image-reward) (2.0.4)
+Requirement already satisfied: sympy in /opt/conda/lib/python3.10/site-packages (from torch>=1.8.0->fairscale==0.4.13->image-reward) (1.12)
+Requirement already satisfied: networkx in /opt/conda/lib/python3.10/site-packages (from torch>=1.8.0->fairscale==0.4.13->image-reward) (3.1)
+Requirement already satisfied: jinja2 in /opt/conda/lib/python3.10/site-packages (from torch>=1.8.0->fairscale==0.4.13->image-reward) (3.1.2)
+Requirement already satisfied: zipp>=3.20 in /opt/conda/lib/python3.10/site-packages (from importlib-metadata->diffusers>=0.16.0->image-reward) (3.23.1)
+Requirement already satisfied: pytz>=2020.1 in /opt/conda/lib/python3.10/site-packages (from pandas->datasets>=2.11.0->image-reward) (2022.7)
+Requirement already satisfied: tzdata>=2022.7 in /opt/conda/lib/python3.10/site-packages (from pandas->datasets>=2.11.0->image-reward) (2026.1)
+Requirement already satisfied: python-dateutil>=2.8.2 in /opt/conda/lib/python3.10/site-packages (from pandas->datasets>=2.11.0->image-reward) (2.9.0.post0)
+Collecting frozenlist>=1.1.1
+  Downloading http://pypi-mirror.modal.local:5555/simple/frozenlist/frozenlist-1.8.0-cp310-cp310-manylinux1_x86_64.manylinux_2_28_x86_64.manylinux_2_5_x86_64.whl (219 kB)
+     ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 219.5/219.5 kB 311.7 MB/s eta 0:00:00
+Collecting async-timeout<6.0,>=4.0
+  Downloading http://pypi-mirror.modal.local:5555/simple/async-timeout/async_timeout-5.0.1-py3-none-any.whl (6.2 kB)
+Collecting propcache>=0.2.0
+  Downloading http://pypi-mirror.modal.local:5555/simple/propcache/propcache-0.4.1-cp310-cp310-manylinux2014_x86_64.manylinux_2_17_x86_64.manylinux_2_28_x86_64.whl (196 kB)
+     ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 196.9/196.9 kB 313.3 MB/s eta 0:00:00
+Collecting multidict<7.0,>=4.5
+  Downloading http://pypi-mirror.modal.local:5555/simple/multidict/multidict-6.7.1-cp310-cp310-manylinux2014_x86_64.manylinux_2_17_x86_64.manylinux_2_28_x86_64.whl (243 kB)
+     ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 243.3/243.3 kB 377.4 MB/s eta 0:00:00
+Collecting aiosignal>=1.4.0
+  Downloading http://pypi-mirror.modal.local:5555/simple/aiosignal/aiosignal-1.4.0-py3-none-any.whl (7.5 kB)
+Collecting aiohappyeyeballs>=2.5.0
+  Downloading http://pypi-mirror.modal.local:5555/simple/aiohappyeyeballs/aiohappyeyeballs-2.6.1-py3-none-any.whl (15 kB)
+Collecting yarl<2.0,>=1.17.0
+  Downloading http://pypi-mirror.modal.local:5555/simple/yarl/yarl-1.23.0-cp310-cp310-manylinux2014_x86_64.manylinux_2_17_x86_64.manylinux_2_28_x86_64.whl (102 kB)
+     ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 102.8/102.8 kB 280.8 MB/s eta 0:00:00
+Requirement already satisfied: attrs>=17.3.0 in /opt/conda/lib/python3.10/site-packages (from aiohttp!=4.0.0a0,!=4.0.0a1->fsspec[http]<=2026.2.0,>=2023.1.0->datasets>=2.11.0->image-reward) (23.1.0)
+Requirement already satisfied: six>=1.5 in /opt/conda/lib/python3.10/site-packages (from python-dateutil>=2.8.2->pandas->datasets>=2.11.0->image-reward) (1.16.0)
+Requirement already satisfied: exceptiongroup>=1.0.2 in /opt/conda/lib/python3.10/site-packages (from anyio->httpx<1.0.0->datasets>=2.11.0->image-reward) (1.1.1)
+Requirement already satisfied: MarkupSafe>=2.0 in /opt/conda/lib/python3.10/site-packages (from jinja2->torch>=1.8.0->fairscale==0.4.13->image-reward) (2.1.1)
+Requirement already satisfied: mpmath>=0.19 in /opt/conda/lib/python3.10/site-packages (from sympy->torch>=1.8.0->fairscale==0.4.13->image-reward) (1.3.0)
+Installing collected packages: xxhash, tqdm, requests, pyarrow, propcache, multidict, h11, fsspec, frozenlist, dill, async-timeout, anyio, aiohappyeyeballs, yarl, multiprocess, httpcore, aiosignal, httpx, aiohttp, timm, datasets, image-reward
+  Attempting uninstall: tqdm
+    Found existing installation: tqdm 4.65.0
+    Uninstalling tqdm-4.65.0:
+      Successfully uninstalled tqdm-4.65.0
+  Attempting uninstall: requests
+    Found existing installation: requests 2.29.0
+    Uninstalling requests-2.29.0:
+      Successfully uninstalled requests-2.29.0
+  Attempting uninstall: fsspec
+    Found existing installation: fsspec 2026.3.0
+    Uninstalling fsspec-2026.3.0:
+      Successfully uninstalled fsspec-2026.3.0
+  Attempting uninstall: timm
+    Found existing installation: timm 0.9.12
+    Uninstalling timm-0.9.12:
+      Successfully uninstalled timm-0.9.12
+Successfully installed aiohappyeyeballs-2.6.1 aiohttp-3.13.5 aiosignal-1.4.0 anyio-4.13.0 async-timeout-5.0.1 datasets-4.8.4 dill-0.4.1 frozenlist-1.8.0 fsspec-2026.2.0 h11-0.16.0 httpcore-1.0.9 httpx-0.28.1 image-reward-1.5 multidict-6.7.1 multiprocess-0.70.19 propcache-0.4.1 pyarrow-23.0.1 requests-2.33.1 timm-0.6.13 tqdm-4.67.3 xxhash-3.6.0 yarl-1.23.0
+Saving image...
+Image saved, took 2.37s
+
+Built image im-XeXKzmCSiWqJTDe44qVgH5 in 16.74s
+
+
+Building image im-7UFUHstAgAZvXKJ2Vuy4nP
+
+=> Step 0: FROM base
+
+=> Step 1: RUN pip install --force-reinstall --no-deps huggingface_hub==0.22.2
+Looking in indexes: http://pypi-mirror.modal.local:5555/simple
+Collecting huggingface_hub==0.22.2
+  Downloading http://pypi-mirror.modal.local:5555/simple/huggingface-hub/huggingface_hub-0.22.2-py3-none-any.whl (388 kB)
+     ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 388.9/388.9 kB 126.1 MB/s eta 0:00:00
+Installing collected packages: huggingface_hub
+  Attempting uninstall: huggingface_hub
+    Found existing installation: huggingface_hub 0.36.2
+    Uninstalling huggingface_hub-0.36.2:
+      Successfully uninstalled huggingface_hub-0.36.2
+Successfully installed huggingface_hub-0.22.2
+Saving image...
+Image saved, took 4.25s
+
+Built image im-7UFUHstAgAZvXKJ2Vuy4nP in 10.77s
+
+
+Building image im-NVkIo3THRMWLl5UaA487Mz
+
+=> Step 0: FROM base
+
+=> Step 1: RUN git clone https://github.com/zai-org/ImageReward.git /root/ImageReward
+Cloning into '/root/ImageReward'...
+Saving image...
+Image saved, took 10.00s
+
+Built image im-NVkIo3THRMWLl5UaA487Mz in 15.60s
+
+
+✓ Created objects.
+├── 🔨 Created mount C:\Users\user\Documents\DVLM Project\reproduce_benchmark.py
+└── 🔨 Created function reproduce_table1.
+======================================================================
+[1] Setting up ImageReward weights
+======================================================================
+    ImageReward.pt: copied (1786.9 MB)
+    med_config.json: copied (0.0 MB)
+
+======================================================================
+[2] Setting up benchmark images
+======================================================================
+    Extracting test_images.zip...
+    Extraction complete
+    Image prefix: /root/benchmark_images/test_images
+    Number of prompt folders: 418
+
+======================================================================
+[3] Loading test.json
+======================================================================
+    Loaded 466 test samples
+    Example: id=005658-0040, n_generations=4
+
+======================================================================
+[4] Loading ImageReward model
+======================================================================
+    Device: cuda
+load checkpoint from /root/.cache/ImageReward/ImageReward.pt
+checkpoint loaded
+    Loaded: ImageReward
+
+======================================================================
+[5] Running inference on all 466 samples
+======================================================================
+Scoring:  19%|█▉        | 89/466 [00:43<02:12,  2.84it/s]- Running (1/1 containers active)... View app at 
+Scoring:  48%|████▊     | 224/466 [01:38<01:31,  2.64it/s]/ Running (1/1 containers active)... View app at
+Scoring:  70%|███████   | 327/466 [02:34<01:09,  1.99it/s]| Running (1/1 containers active)... View app at
+Scoring:  92%|█████████▏| 430/466 [03:29<00:21,  1.66it/s]- Running (1/1 containers active)... View app at
+Scoring: 100%|██████████| 466/466 [03:51<00:00,  2.02it/s]
+
+    Scored: 466 / 466 samples
+    Skipped: 0
+
+======================================================================
+[6] Computing preference accuracy
+======================================================================
+
+    ╔══════════════════════════════════════════════╗
+    ║  ImageReward-v1.0 Test Accuracy:  65.15%  ║
+    ║  Paper reported:                  65.14%     ║
+    ╚══════════════════════════════════════════════╝
+
+    ✅ REPRODUCTION SUCCESSFUL (within 1% of paper)
+
+======================================================================
+FINAL RESULT
+======================================================================
+{
+  "accuracy": 0.6515080481325207,
+  "accuracy_pct": 65.15080481325207,
+  "paper_pct": 65.14,
+  "samples_scored": 466,
+  "samples_skipped": 0
+}
+Stopping app - local entrypoint completed.
+✓ App completed. View run at https://modal.com/apps/altaf-baigal997/main/ap-ooA5nrRlufbDAKvbo9d0UZ
+(venv) (base) PS C:\Users\user\Documents\DVLM Project> 
