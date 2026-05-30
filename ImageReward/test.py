@@ -87,7 +87,6 @@ def test(args):
 
 
 if __name__ == "__main__":
-    
     parser = argparse.ArgumentParser()
     
     parser.add_argument('--source_path', default="data/test.json", type=str)
